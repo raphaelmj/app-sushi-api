@@ -1,0 +1,29 @@
+[
+    {
+        "name": "Ryby",
+        "tags": [
+            "łosoś",
+            "maślana",
+            "pstrąg",
+            "tuńczyk",
+            "krewetka",
+            "ośmiornica",
+            "surimi"
+        ]
+    },
+    {
+        "name": "Warzywa",
+        "tags": [
+            "ogórek",
+            "avocado"
+        ]
+    },
+    {
+        "name": "Napoje",
+        "tags": []
+    },
+    {
+        "name": "Inne",
+        "tags": []
+    }
+]

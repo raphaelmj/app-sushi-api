@@ -1,0 +1,107 @@
+[{
+        "name": "Herbata czarna",
+        "shortName": "czar.",
+        "types": [{
+                "type": "zwykła",
+                "options": [{
+                        "name": "filiżanka",
+                        "shortName": "fl.",
+                        "price": "6",
+                        "isSea": false
+                    },
+                    {
+                        "name": "dzbanek",
+                        "shortName": "dzb.",
+                        "price": "12",
+                        "isSea": false
+                    }
+                ]
+            },
+            {
+                "type": "wiśniowa",
+                "options": [{
+                        "name": "filiżanka",
+                        "shortName": "fl.",
+                        "price": "6",
+                        "isSea": false
+                    },
+                    {
+                        "name": "dzbanek",
+                        "shortName": "dzb.",
+                        "price": "12",
+                        "isSea": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "Herbata zielona",
+        "shortName": "ziel.",
+        "types": [{
+                "type": "zwykła",
+                "options": [{
+                        "name": "filiżanka",
+                        "shortName": "fl.",
+                        "price": "6",
+                        "isSea": false
+                    },
+                    {
+                        "name": "dzbanek",
+                        "shortName": "dzb.",
+                        "price": "12",
+                        "isSea": false
+                    }
+                ]
+            },
+            {
+                "type": "wiśniowa",
+                "options": [{
+                        "name": "filiżanka",
+                        "shortName": "fl.",
+                        "price": "6",
+                        "isSea": false
+                    },
+                    {
+                        "name": "dzbanek",
+                        "shortName": "dzb.",
+                        "price": "12",
+                        "isSea": false
+                    }
+                ]
+            },
+            {
+                "type": "jaśminowa",
+                "options": [{
+                        "name": "filiżanka",
+                        "shortName": "fl.",
+                        "price": "6",
+                        "isSea": false
+                    },
+                    {
+                        "name": "dzbanek",
+                        "shortName": "dzb.",
+                        "price": "12",
+                        "isSea": false
+                    }
+                ]
+            },
+            {
+                "type": "ryżowa",
+                "options": [{
+                        "name": "filiżanka",
+                        "shortName": "fl.",
+                        "price": "6",
+                        "isSea": false
+                    },
+                    {
+                        "name": "dzbanek",
+                        "shortName": "dzb.",
+                        "price": "12",
+                        "isSea": false
+                    }
+                ]
+            }
+        ]
+    }
+]

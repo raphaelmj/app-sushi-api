@@ -1,0 +1,66 @@
+[{
+        "name": "Sake",
+        "shortName": "sake",
+        "types": [{
+            "type": "tradycyjne",
+            "options": [{
+                "name": "100ml",
+                "shortName": "100ml",
+                "price": "12",
+                "isSea": false
+            }]
+        }]
+    },
+    {
+        "name": "Śliwkowe",
+        "shortName": "śli.",
+        "types": [{
+            "type": "hoya",
+            "options": [{
+                    "name": "100ml",
+                    "shortName": "100ml",
+                    "price": "12",
+                    "isSea": false
+                },
+                {
+                    "name": "250ml",
+                    "shortName": "250ml",
+                    "price": "21",
+                    "isSea": false
+                },
+                {
+                    "name": "500ml",
+                    "shortName": "500ml",
+                    "price": "40",
+                    "isSea": false
+                }
+            ]
+        }]
+    },
+    {
+        "name": "Home wine",
+        "shortName": "h. wine.",
+        "types": [{
+            "type": "białe",
+            "options": [{
+                    "name": "100ml",
+                    "shortName": "100ml",
+                    "price": "12",
+                    "isSea": false
+                },
+                {
+                    "name": "250ml",
+                    "shortName": "250ml",
+                    "price": "21",
+                    "isSea": false
+                },
+                {
+                    "name": "500ml",
+                    "shortName": "500ml",
+                    "price": "40",
+                    "isSea": false
+                }
+            ]
+        }]
+    }
+]

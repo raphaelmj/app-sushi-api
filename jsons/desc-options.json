@@ -1,0 +1,34 @@
+[
+    {
+        "name": "Ryby",
+        "tags": [
+            "bez łosoś",
+            "bez maślana",
+            "bez pstrąg",
+            "bez tuńczyk",
+            "bez krewetka",
+            "bez ośmiornica",
+            "bez surimi"
+        ]
+    },
+    {
+        "name": "Warzywa",
+        "tags": [
+            "bez ogórek",
+            "bez avocado"
+        ]
+    },
+    {
+        "name": "Napoje",
+        "tags": [
+            "z lodem",
+            "z cytryną"
+        ]
+    },
+    {
+        "name": "Inne",
+        "tags": [
+            "bez tempury"
+        ]
+    }
+]
