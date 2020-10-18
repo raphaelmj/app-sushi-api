@@ -41,6 +41,16 @@ export class AuthController {
   }
 
 
+  @Get('get/current/user')
+  async getCurrentUser(@Req() req, @Res() res) {
+    return res.json(await this.authService.getCurrentUser(req.cookies));
+  }
+
+  @Get('get/current/user/token')
+  async getCurrentUserToken(@Req() req, @Res() res) {
+    return res.json(await this.authService.getCurrentUserToken(req.cookies));
+  }
+
   @Post('token/check')
   async checkAuthCheck(@Req() req, @Res() res, @Body() body) {
     var data: { success: boolean, user?: any } = await this.authService.checkAuthApp(body.token);
@@ -56,6 +66,11 @@ export class AuthController {
   @Post('check/password')
   async checkPassword(@Res() res, @Body() body) {
     return res.json(await this.authService.checkSomePassword(body.password))
+  }
+
+  @Post('check/user/password')
+  async checkUserPassword(@Res() res, @Body() body) {
+    return res.json({ confirm: await this.authService.checkUserPassword(body.id, body.password) })
   }
 
 }

@@ -1,3 +1,4 @@
+import { UserService } from './../../services/user/user.service';
 import { AppConfigData } from './../../interfaces/app-config.interface';
 import { AppConfig } from 'src/entities/AppConfig';
 import { CalculateService } from './../../services/calculate/calculate.service';
@@ -35,7 +36,9 @@ export class OrdersController {
     private readonly eventGateway: EventsGateway,
     private readonly cartOrderService: CartOrderService,
     private authService: AuthService,
+    private userService: UserService,
     private ordersService: OrdersService,
+    @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(CartOrder)
     private readonly cartOrderRepository: Repository<CartOrder>,
     @InjectRepository(CartOrderElement)
@@ -46,7 +49,7 @@ export class OrdersController {
 
   @Post('create')
   async create(@Res() res, @Body() body, @Query() query) {
-    const user: User = await this.authService.getFirstUser();
+    const user: User = await this.userRepository.findOne(body.userId)
     const timeSync = NtpTimeSync.getInstance();
     const appConfig: AppConfig = await AppConfig.findOne()
     const ac: AppConfigData = appConfig.data

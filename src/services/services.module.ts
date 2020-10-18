@@ -27,6 +27,7 @@ import { ReverseOptions } from 'src/entities/ReverseOptions';
 import { DescOptions } from 'src/entities/DescOptions';
 import { CalculateService } from './calculate/calculate.service';
 import { ReservationTimeCheckService } from './reservation-time-check/reservation-time-check.service';
+import { UserService } from './user/user.service';
 
 @Module({
   imports: [
@@ -63,7 +64,8 @@ import { ReservationTimeCheckService } from './reservation-time-check/reservatio
     DescOptionsService,
     CalculateService,
     ReservationTimeCheckService,
-    EventsGateway
+    EventsGateway,
+    UserService
 
   ],
   exports: [
@@ -78,7 +80,8 @@ import { ReservationTimeCheckService } from './reservation-time-check/reservatio
     ReverseOptionsService,
     DescOptionsService,
     CalculateService,
-    ReservationTimeCheckService
+    ReservationTimeCheckService,
+    UserService
   ],
 })
 export class ServicesModule { }

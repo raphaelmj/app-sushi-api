@@ -1,6 +1,6 @@
 import { map } from 'p-iteration';
 import { User } from './../entities/User';
-import { UserData } from './../interfaces/user.interface';
+import { UserData, UserTokenData, UserPerm } from './../interfaces/user.interface';
 import { Injectable } from '@nestjs/common';
 import { PasswordService } from './password.service';
 
@@ -21,7 +21,7 @@ export class AuthService {
     password: string,
     role: string,
   ): Promise<{ success: boolean; access_token: string; user?: UserData }> {
-    var u: User = await this.userRepository.findOne({ where: { nick } });
+    var u: User = await this.userRepository.findOne({ where: { nick, status: true } });
 
     if (u) {
       var compare = await this.passwordService.comparePassword(
@@ -48,7 +48,7 @@ export class AuthService {
     password: string,
     role: string,
   ): Promise<{ success: boolean; access_token: string; user?: UserData, exp?: number }> {
-    var u = await this.userRepository.findOne({ where: { nick } });
+    var u = await this.userRepository.findOne({ where: { nick, status: true } });
 
     if (u) {
       var compare: boolean = await this.passwordService.comparePassword(
@@ -123,6 +123,55 @@ export class AuthService {
       }
     })
     return bool
+  }
+
+  async checkUserPassword(id: number, password: string): Promise<boolean> {
+    var user: User = await this.userRepository.findOne(id)
+    if (user) {
+      return await this.passwordService.comparePassword(password, user.password)
+    } else {
+      return false
+    }
+
+  }
+
+  async getCurrentUser(cookies): Promise<User | null> {
+    return await this.userRepository.findOne({ select: ['id', 'nick', 'status', 'permission'], where: { id: 2 } })
+    if (cookies.authToken) {
+      try {
+        this.jwtService.verify<{}>(cookies.authToken);
+        var dt = this.jwtService.decode(cookies.authToken)
+        return await this.userRepository.findOne({ select: ['id', 'nick', 'status', 'permission'], where: { id: dt['id'] } })
+      } catch (err) {
+        return null
+      }
+    } else {
+      return null;
+    }
+  }
+
+  async getCurrentUserToken(cookies): Promise<UserTokenData | null> {
+    return {
+      id: 2,
+      nick: "marcin",
+      role: "waiter",
+      permission: UserPerm.super,
+    }
+    if (cookies.authToken) {
+      try {
+        this.jwtService.verify<{}>(cookies.authToken);
+        var dt = this.jwtService.decode(cookies.authToken)
+        return <UserTokenData>dt
+      } catch (err) {
+        return null
+      }
+    } else {
+      return null;
+    }
+  }
+
+  async getUsers() {
+    return await this.userRepository.find({ select: ['id', 'nick', 'status', 'permission'] })
   }
 
 }

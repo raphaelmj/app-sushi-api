@@ -302,11 +302,11 @@ export class EsQueryBaseService {
             (poel.elementType == 'special'),
             el.isSea,
             ((mel) ? mel.id : null),
-            ((poel.ind) ? poel.ind['index'] : null),
-            ((poel.ind) ? poel.ind['priceNameIndex'] : null),
-            ((poel.ind) ? poel.ind['configFirstIndex'] : null),
-            ((poel.ind) ? poel.ind['configSecondIndex'] : null),
-            ((poel.ind) ? poel.ind['configThirdIndex'] : null))
+            ((el.ind) ? el.ind['index'] : null),
+            ((el.ind) ? el.ind['priceNameIndex'] : null),
+            ((el.ind) ? el.ind['configFirstIndex'] : null),
+            ((el.ind) ? el.ind['configSecondIndex'] : null),
+            ((el.ind) ? el.ind['configThirdIndex'] : null))
 
         return {
             id: o.id + '' + poel.id + '' + ((mel) ? mel.id : 0) + moment().format('x') + mergeIndex,
@@ -315,10 +315,10 @@ export class EsQueryBaseService {
             poelId: poel.id,
             melId: (mel) ? mel.id : null,
             index: el.ind.index,
-            priceNameIndex: (poel.ind) ? poel.ind['priceNameIndex'] : null,
-            configFirstIndex: (poel.ind) ? poel.ind['priceNameIndex'] : null,
-            configSecondIndex: (poel.ind) ? poel.ind['configSecondIndex'] : null,
-            configThirdIndex: (poel.ind) ? poel.ind['configThirdIndex'] : null,
+            priceNameIndex: (el.ind) ? el.ind['priceNameIndex'] : null,
+            configFirstIndex: (el.ind) ? el.ind['priceNameIndex'] : null,
+            configSecondIndex: (el.ind) ? el.ind['configSecondIndex'] : null,
+            configThirdIndex: (el.ind) ? el.ind['configThirdIndex'] : null,
             indString,
             name: await this.decodeIndStringCreateName(indString),
             reservation: o.reservation,
@@ -374,8 +374,8 @@ export class EsQueryBaseService {
             (poel.elementType == 'special'),
             el.isSea,
             ((mel) ? mel.id : null),
-            ((poel.ind) ? poel.ind['index'] : null),
-            ((poel.ind) ? poel.ind['priceNameIndex'] : null),
+            ((el.ind) ? el.ind['index'] : null),
+            ((el.ind) ? el.ind['priceNameIndex'] : null),
             step.configFirstIndex,
             step.configSecondIndex,
             step.configThirdIndex)
@@ -387,7 +387,7 @@ export class EsQueryBaseService {
             poelId: poel.id,
             melId: (mel) ? mel.id : null,
             index: el.ind.index,
-            priceNameIndex: (poel.ind) ? poel.ind['priceNameIndex'] : null,
+            priceNameIndex: (el.ind) ? el.ind['priceNameIndex'] : null,
             configFirstIndex: step.configFirstIndex,
             configSecondIndex: step.configSecondIndex,
             configThirdIndex: step.configThirdIndex,
@@ -601,6 +601,7 @@ export class EsQueryBaseService {
                 break;
 
             case ElementType.manyNames:
+
                 name = me.priceNames[priceNameIndex].name
                 break;
             case ElementType.descElements:

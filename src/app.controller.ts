@@ -25,36 +25,5 @@ export class AppController {
     return res.sendFile(join(process.cwd() + '/ngadmin/index.html'));
   }
 
-  @Get('jobs')
-  async checkJobs(@Res() res) {
-    const job = this.schedulerRegistry.getCronJob('reservations');
-    return res.json(job.lastDate())
-  }
-
-  @Get('sites')
-  async getSitesOne(@Res() res) {
-    return res.json(await this.siteService.getOneName());
-  }
-
-  @Get('sites2')
-  async getSitesMany(@Res() res) {
-    return res.json(await this.siteService.getManyNames());
-  }
-
-  @Get('sites3')
-  async getConfig(@Res() res) {
-    return res.json(await this.siteService.getConfigPrice());
-  }
-
-  @Get('sites4')
-  async getDesc(@Res() res) {
-    return res.json(await this.siteService.getAll());
-  }
-
-  @Get('anchors')
-  async getAnchs(@Res() res) {
-    return res.json(await this.anchorService.getAll());
-  }
-
 
 }
