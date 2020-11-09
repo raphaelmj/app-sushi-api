@@ -1,7 +1,7 @@
 import { ReservationTimeCheckService } from './services/reservation-time-check/reservation-time-check.service';
 import { CartOrder } from 'src/entities/CartOrder';
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
-import { SchedulerRegistry, Cron } from '@nestjs/schedule';
+import { SchedulerRegistry, Cron, Interval } from '@nestjs/schedule';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -17,6 +17,8 @@ export class AppJobsService implements OnApplicationBootstrap {
 
     }
 
+
+    // @Interval(5000)
     @Cron('* * * * * *', {
         name: 'reservations',
     })

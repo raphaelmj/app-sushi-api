@@ -10,10 +10,16 @@ export class MenuElement extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ nullable: true })
+  cartCategoryId: number;
+
   @ManyToOne((type) => CartCategory, (cartCategory) => cartCategory.elements, {
     onDelete: 'SET NULL',
   })
   cartCategory: CartCategory;
+
+  @Column({ nullable: true })
+  menuCategoryId: number;
 
   @ManyToOne((type) => MenuCategory, (menuCategory) => menuCategory.elements, {
     onDelete: 'SET NULL',

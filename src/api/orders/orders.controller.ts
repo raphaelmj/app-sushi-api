@@ -1,3 +1,4 @@
+import { EsUpdateOrdersService } from './../../es-services/es-update/es-update-orders.service';
 import { UserService } from './../../services/user/user.service';
 import { AppConfigData } from './../../interfaces/app-config.interface';
 import { AppConfig } from 'src/entities/AppConfig';
@@ -44,6 +45,7 @@ export class OrdersController {
     @InjectRepository(CartOrderElement)
     private readonly cartOrderElementRepository: Repository<CartOrderElement>,
     private readonly esUpdateService: EsUpdateService,
+    private readonly esUpdateOrderService: EsUpdateOrdersService,
     private readonly calculateService: CalculateService
   ) { }
 
@@ -73,6 +75,7 @@ export class OrdersController {
 
 
     await this.esUpdateService.createIndexElementsFromOrder(cartOrder)
+    await this.esUpdateOrderService.createOneOrderIndex(cartOrder)
     this.eventGateway.server.emit('orderCreateFront', {
       order: cartOrder,
       uuid: query.uuid
@@ -122,9 +125,6 @@ export class OrdersController {
     var corder: CartOrder = await this.cartOrderRepository.findOne(body.id)
     const partial: Record<any, unknown> = {};
     partial[body.field] = body.data;
-    // if (body.field == 'inProgress' && body.data && corder.status == OrderStatus.ready) {
-    //   partial['status'] = OrderStatus.create
-    // }
 
     await this.cartOrderRepository.update({ id: body.id }, partial);
 
@@ -148,7 +148,8 @@ export class OrdersController {
     }
 
     var co: CartOrder = await this.cartOrderRepository.findOne(body.id)
-    await this.esUpdateService.elementsDateUpdate(co)
+    await this.esUpdateService.elementDataUpdate(corder)
+    await this.esUpdateOrderService.orderDataUpdate(corder)
     return res.json(body);
   }
 
@@ -156,7 +157,8 @@ export class OrdersController {
   async fieldsChange(@Res() res, @Body() body, @Query() query): Promise<CartOrder> {
     this.cartOrderRepository.update(body.id, body.data)
     var corder: CartOrder = await this.cartOrderRepository.findOne(body.id)
-    await this.esUpdateService.elementsDateUpdate(corder)
+    await this.esUpdateService.elementDataUpdate(corder)
+    await this.esUpdateOrderService.orderDataUpdate(corder)
     this.eventGateway.server.emit('orderUpdate', {
       order: corder,
       uuid: query.uuid
@@ -168,6 +170,7 @@ export class OrdersController {
   async dateChange(@Res() res, @Body() body, @Query() query) {
     var corder: CartOrder = await this.ordersService.updateDateSetNumber(body)
     await this.esUpdateService.elementsDateUpdate(corder)
+    await this.esUpdateOrderService.orderDateUpdate(corder)
     this.eventGateway.server.emit('orderUpdateTime', {
       order: corder,
       uuid: query.uuid
@@ -205,7 +208,28 @@ export class OrdersController {
     var corder: CartOrder = await this.cartOrderRepository.findOne(body.id)
     var beforePaid: boolean = corder.paid
     corder = await this.cartOrderService.orderBonusSet(corder, body.bonusUsed)
-    await this.esUpdateService.elementsDateUpdate(corder)
+    await this.esUpdateService.elementDataUpdate(corder)
+    await this.esUpdateOrderService.orderDataUpdate(corder)
+    this.eventGateway.server.emit('bonusUsed', {
+      order: corder,
+      uuid: query.uuid
+    });
+    if (!beforePaid && corder.paid) {
+      this.eventGateway.server.emit('orderUpdate', {
+        order: corder,
+        uuid: query.uuid
+      });
+    }
+    return res.json(corder);
+  }
+
+  @Post('order/bonus/type/change')
+  async bonusTypeChange(@Res() res, @Body() body, @Query() query) {
+    var corder: CartOrder = await this.cartOrderRepository.findOne(body.id)
+    var beforePaid: boolean = corder.paid
+    corder = await this.cartOrderService.orderBonusTypeSet(corder, body.bonusUsed, body.bonusType, body.percent)
+    await this.esUpdateService.elementDataUpdate(corder)
+    await this.esUpdateOrderService.orderDataUpdate(corder)
     this.eventGateway.server.emit('bonusUsed', {
       order: corder,
       uuid: query.uuid
@@ -223,33 +247,36 @@ export class OrdersController {
   async updateElement(@Res() res, @Body() body, @Query() query) {
     var corder: CartOrder = await this.cartOrderService.updateCartElement(body);
     await this.esUpdateService.elementDataUpdate(corder)
+    await this.esUpdateOrderService.orderDataUpdate(corder)
     this.eventGateway.server.emit('orderUpdate', {
       order: corder,
       uuid: query.uuid
     });
-    return res.json(body);
+    return res.json(corder);
   }
 
   @Post('order/element/delete')
   async deleteElement(@Res() res, @Body() body, @Query() query) {
     var corder: CartOrder = await this.cartOrderService.deleteElement(body.id, body.orderId);
     await this.esUpdateService.removeElement(corder)
+    await this.esUpdateOrderService.removeOrderElement(corder)
     this.eventGateway.server.emit('orderUpdate', {
       order: corder,
       uuid: query.uuid
     });
-    return res.json(body);
+    return res.json(corder);
   }
 
   @Post('order/add/element')
   async addElement(@Res() res, @Body() body, @Query() query) {
     var { order, cartEl }: { order: CartOrder, cartEl: CartOrderElement } = await this.cartOrderService.addElement(body);
     await this.esUpdateService.addElementToOrder(order)
+    await this.esUpdateOrderService.addElementToOrder(order)
     this.eventGateway.server.emit('orderUpdate', {
       order: order,
       uuid: query.uuid
     });
-    return res.json(cartEl);
+    return res.json({ o: order, ce: cartEl });
   }
 
   @Post('order/element/status/change')

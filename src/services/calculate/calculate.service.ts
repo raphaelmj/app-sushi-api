@@ -75,6 +75,18 @@ export class CalculateService {
         return x.dividedBy(right).toNumber()
     }
 
+    percentFind(percent: string | number, value: string | number) {
+        if (typeof percent == 'string') {
+            percent = this.stringToNumber(percent)
+        }
+        if (typeof value == 'string') {
+            value = this.stringToNumber(value)
+        }
+        var p = new BigNumber(percent)
+        var pFloat: BigNumber = p.dividedBy(100)
+        return pFloat.multipliedBy(value).toNumber()
+    }
+
     stringToNumber(value: string | number): number {
         var bN: BigNumber = new BigNumber(value)
         return bN.toNumber()

@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import NtpTimeSync from "ntp-time-sync";
 import * as fs from 'fs';
 import { join } from 'path';
+import * as moment from "moment"
 
 @Injectable()
 export class ReservationTimeCheckService {
@@ -30,7 +31,7 @@ export class ReservationTimeCheckService {
             var result = await timeSync.getTime()
             var date: Date = result.now
             var dateString: string = date.toLocaleString(ac.lang, { timeZone: ac.timezone })
-
+            // console.log(moment(date).format('YYYY-MM-DD HH:mm:ss'))
 
             // if (!fs.existsSync(join(process.cwd(), '/logs.txt'))) {
             //     fs.writeFileSync(join(process.cwd(), '/logs.txt'), '')
@@ -39,10 +40,11 @@ export class ReservationTimeCheckService {
             // var logs: string = b.toString()
             // logs += dateString + '\r\n'
             // fs.writeFileSync(join(process.cwd(), '/logs.txt'), logs)
+            // await this.logMake(dateString)
 
 
-            var countChanged: number = await this.ordersService.changeIncommingReservations(dateString)
-            // console.log(countChanged)
+            var countChanged: number = await this.ordersService.changeIncommingReservations(dateString, date)
+            // console.log(dateString)
             this.eventGateway.server.emit('changeInProgress', {
                 isChanged: (countChanged > 0) ? true : false
             });
@@ -51,6 +53,17 @@ export class ReservationTimeCheckService {
         }
 
 
+    }
+
+    async logMake(dateString): Promise<string> {
+        if (!fs.existsSync(join(process.cwd(), '/logs.txt'))) {
+            fs.writeFileSync(join(process.cwd(), '/logs.txt'), '')
+        }
+        var b: Buffer = fs.readFileSync(join(process.cwd(), '/logs.txt'))
+        var logs: string = b.toString()
+        logs += dateString + '\r\n'
+        fs.writeFileSync(join(process.cwd(), '/logs.txt'), logs)
+        return dateString
     }
 
 }

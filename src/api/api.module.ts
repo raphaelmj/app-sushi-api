@@ -42,6 +42,7 @@ import { OptionsConfigModule } from './options-config/options-config.module';
 })
 export class ApiModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthSimpleMiddleware);
+    consumer
+      .apply(AuthSimpleMiddleware)
   }
 }

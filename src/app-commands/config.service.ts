@@ -1,3 +1,5 @@
+import { OrderStatus } from './../interfaces/cart-order.interface';
+import { QueryStringState } from './../interfaces/app-config.interface';
 import { AppConfig } from './../entities/AppConfig';
 import { Injectable } from '@nestjs/common';
 import { createSpinner, Command, Console } from 'nestjs-console';
@@ -62,6 +64,57 @@ export class ConfigService {
     }
 
 
+    @Command({
+        command: 'config-percent-list'
+    })
+    async setPercentList() {
+        const spin = createSpinner();
+        spin.start('percent list');
+        var app = await AppConfig.findOne()
+        app.data.bonusPercents = [
+            5, 10, 15, 20
+        ]
+        await app.save()
+        spin.succeed('changed')
+    }
 
+
+    @Command({
+        command: 'config-inprogress'
+    })
+    async setInProgressTime() {
+        const spin = createSpinner();
+        spin.start('minutes inprogress');
+        var app = await AppConfig.findOne()
+        app.data.inProgressMinutes = 180;
+        await app.save()
+        spin.succeed('changed')
+    }
+
+
+    @Command({
+        command: 'config-filters'
+    })
+    async setFilters() {
+        const spin = createSpinner();
+        spin.start('filters config');
+        var app = await AppConfig.findOne()
+        app.data.defaultFiltersStates = {
+            waiter: {
+                sts: [OrderStatus.create, OrderStatus.ready],
+                paid: QueryStringState.none,
+                reservation: QueryStringState.all,
+                inprogress: QueryStringState.all
+            },
+            admin: {
+                sts: [OrderStatus.create, OrderStatus.ready],
+                paid: QueryStringState.none,
+                reservation: QueryStringState.none,
+                inprogress: QueryStringState.restrict
+            }
+        }
+        await app.save()
+        spin.succeed('changed')
+    }
 
 }

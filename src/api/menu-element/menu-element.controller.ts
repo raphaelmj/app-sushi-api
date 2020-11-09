@@ -1,7 +1,8 @@
+import { MenuElementsService } from 'src/services/menu-elements/menu-elements.service';
 import { CartCategory } from './../../entities/CartCategory';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MenuElement } from 'src/entities/MenuElement';
-import { Controller, Post, Res, Body, Delete, Param } from '@nestjs/common';
+import { Controller, Post, Res, Body, Delete, Param, Get } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 @Controller('/api/menu-element')
@@ -11,17 +12,31 @@ export class MenuElementController {
         @InjectRepository(CartCategory)
         private readonly cartCategoryRepository: Repository<CartCategory>,
         @InjectRepository(MenuElement)
-        private readonly menuElementRepository: Repository<MenuElement>
+        private readonly menuElementRepository: Repository<MenuElement>,
+        private readonly menuElementService: MenuElementsService
     ) { }
+
+    @Get('/all')
+    async getElements(@Res() res) {
+        return res.json(await this.menuElementRepository.find())
+    }
 
     @Post('update')
     async update(@Res() res, @Body() body) {
         return res.json(await this.menuElementRepository.update(body.id, body))
     }
 
+    @Post('update/many')
+    async updateMany(@Res() res, @Body() body) {
+        console.log(body)
+        return res.json(await this.menuElementService.updateMany(body))
+    }
+
+
     @Post('free/from/menu-category')
     async freeFromMenu(@Res() res, @Body() body) {
-        return res.json(await this.menuElementRepository.update(body.id, { menuCategory: null }))
+        await this.menuElementRepository.update(body.id, { menuCategory: null })
+        return res.json(await this.menuElementRepository.findOne(body.id))
     }
 
     @Post('create')
@@ -45,6 +60,8 @@ export class MenuElementController {
         upD[body.field] = (body.value)
         return res.json(await this.menuElementRepository.update(body.id, upD))
     }
+
+
 
 
 }

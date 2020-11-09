@@ -1,5 +1,5 @@
-import { query } from 'express';
-
+import { CalculateService } from './../calculate/calculate.service';
+import { AppConfig } from 'src/entities/AppConfig';
 import { CartCategory } from 'src/entities/CartCategory';
 import { Injectable } from '@nestjs/common';
 import { CartOrder } from 'src/entities/CartOrder';
@@ -49,6 +49,7 @@ export class OrdersService {
   private group: CartGroup[] = [];
   private groupIndexes: {} = {};
   constructor(
+    private readonly calculateService: CalculateService,
     @InjectRepository(CartOrder)
     private readonly cartOrderRepository: Repository<CartOrder>,
     @InjectRepository(CartOrderElement)
@@ -312,7 +313,9 @@ export class OrdersService {
         total: o.total,
         bonusTotal: o.bonusTotal,
         bonusUsed: o.bonusUsed,
+        bonusType: o.bonusType,
         currentBonusPrice: o.currentBonusPrice,
+        currentBonusPercent: o.currentBonusPercent,
         oneExtraPrice: o.oneExtraPrice,
         place: o.place,
         status: o.status,
@@ -608,11 +611,13 @@ export class OrdersService {
     return { dayR: reservations, soonR: nextDaysR, day }
   }
 
-  async changeIncommingReservations(dateString: string): Promise<number> {
+  async changeIncommingReservations(dateString: string, date: Date): Promise<number> {
 
     var countChanged: number = 0
-
-    var nowDate = moment(dateString, 'YY-M-D HH:mm:ss')
+    // var nowDate = moment(dateString, 'DD.MM.YYYY, HH:mm:ss') //server
+    // var nowDate = moment(dateString, 'YY-M-D HH:mm:ss')
+    var appConfig: AppConfig = await AppConfig.findOne()
+    var nowDate = moment(date);
     var nowDateHourBefore = moment(nowDate).add(-1, 'hour')
 
     if (nowDate.toDate().getDate() != nowDateHourBefore.toDate().getDate()) {
@@ -624,6 +629,7 @@ export class OrdersService {
     }
 
     // console.log(startOf.format(BASE_DATETIME_FORMAT), endOf.format(BASE_DATETIME_FORMAT))
+
 
     var reservations: CartOrder[] = await this.cartOrderRepository.find({
       where: (qb) => {
@@ -647,10 +653,20 @@ export class OrdersService {
 
     var added: CartOrder[] = []
 
+    var minutesInP: number = appConfig.data.inProgressMinutes;
+    var startDay = moment(nowDate.hour(0).minutes(0).second(0))
+    const minutesFromStart: number = moment(date).diff(startDay, 'minutes');
+
     await map(reservations, async (r, i) => {
       var endAt = moment(r.endAt)
-      var endAtHourMinus = moment(endAt.toDate()).add(-1, 'hour')
-      if (endAtHourMinus.isBefore(nowDate)) {
+
+      if (minutesFromStart <= minutesInP) {
+        var endAtHourMinus = moment(endAt.toDate()).add(-(minutesFromStart - 5), 'minutes')
+      } else {
+        var endAtHourMinus = moment(endAt.toDate()).add(-(minutesInP), 'minutes')
+      }
+
+      if (endAtHourMinus.isBefore(moment(date))) {
         r.inProgress = true
         await r.save()
         added.push(r)
@@ -665,10 +681,14 @@ export class OrdersService {
     }
     var b: Buffer = fs.readFileSync(join(process.cwd(), '/logs.txt'))
     var logs: string = b.toString()
-    added.map(a => {
-      var s: string = dateString + '|' + a.id + '|' + a.orderNumber + '|endAt:' + a.endAt
-      logs += s + '\r\n'
-    })
+    // added.map(a => {
+    //   var s: string = dateString + '|' + a.id + '|' + a.orderNumber + '|endAt:' + a.endAt
+    //   logs += s + '\r\n'
+    // })
+
+    var s: string = dateString + '|' + reservations.length + '|' + countChanged + '|' + startOf.format(BASE_DATETIME_FORMAT) + '|' + endOf.format(BASE_DATETIME_FORMAT)
+    logs += s + '\r\n'
+
 
     fs.writeFileSync(join(process.cwd(), '/logs.txt'), logs)
 
@@ -676,5 +696,7 @@ export class OrdersService {
     return countChanged
 
   }
+
+
 
 }

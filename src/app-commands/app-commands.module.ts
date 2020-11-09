@@ -34,7 +34,7 @@ import { RandomDecimalPricesService } from './random-decimal-prices.service';
 @Module({
   imports: [
     MongooseModule.forRoot(
-      'mongodb://...',
+      'mongodb://mo1239_mo:Mo1234@mongo27.mydevil.net/mo1239_mo',
     ),
     TypeOrmModule.forRoot({
       type: 'mysql',
@@ -42,7 +42,7 @@ import { RandomDecimalPricesService } from './random-decimal-prices.service';
       port: 3306,
       username: 'root',
       password: '',
-      database: 'base',
+      database: 'mydb',
       entities: [
         User,
         CartOrder,

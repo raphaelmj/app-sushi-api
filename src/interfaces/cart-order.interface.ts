@@ -19,6 +19,12 @@ export enum OrderType {
     special = "special"
 }
 
+export enum BonusType {
+    none = "none",
+    cart = "cart",
+    percent = "percent"
+}
+
 export interface CartOrderData {
     id: number
     orderNumber: number | null
@@ -27,7 +33,9 @@ export interface CartOrderData {
     total: number
     bonusTotal: number
     bonusUsed: boolean
+    bonusType: BonusType
     currentBonusPrice: number
+    currentBonusPercent: number
     oneExtraPrice: number
     description: string | null
     forWho: string | null

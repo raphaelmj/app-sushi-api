@@ -1,21 +1,22 @@
+import { CartCategoryRepository } from './../../repositories/cart-category-repository';
 import { CartCategory } from './../../entities/CartCategory';
-import { CalculateService } from './../../services/calculate/calculate.service';
+import { StepOptionsListElement } from './../../interfaces/cart-order-element-data.interface';
+import { PlusElement, ReverseElement } from './../../interfaces/cart-group.interface';
 import { ElementType } from './../../interfaces/site-element.interface';
-import { AppConfig } from './../../entities/AppConfig';
-import { ReverseElement, PlusElement, StepOptionsListElement } from './../../interfaces/cart-group.interface';
+import { Weekdays, EsElementPositionType, EsOptionsElement, EsDescElement, EsReverseElement } from 'src/interfaces/es/es-index-element.interface';
 import { map } from 'p-iteration';
-import { MenuElement } from './../../entities/MenuElement';
-import { CartOrderElement } from './../../entities/CartOrderElement';
+import { EsOrderIndexElement, EsOrderDataElement, EsOrderNestedElement } from './../../interfaces/es/es-order-index-element.interface';
+import { CalculateService } from './../../services/calculate/calculate.service';
+import { MenuElement } from 'src/entities/MenuElement';
+import { CartOrderElement } from 'src/entities/CartOrderElement';
 import { CartOrder } from 'src/entities/CartOrder';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EsIndexElement, EsElementPositionType, EsOptionsElement, EsDescElement, EsReverseElement, Weekdays } from 'src/interfaces/es/es-index-element.interface';
 import * as moment from "moment"
-import e = require('express');
 
 @Injectable()
-export class EsQueryBaseService {
+export class EsQueryOrdersBaseService {
     constructor(
         @InjectRepository(CartOrder)
         private readonly cartOrderRepository: Repository<CartOrder>,
@@ -30,58 +31,70 @@ export class EsQueryBaseService {
 
     }
 
-    async getCartElementsListForDay(day: string): Promise<EsIndexElement[]> {
-        var queryDay = moment.parseZone(day);
-        var endOfDay = moment.parseZone(day).add(1, 'd');
-        var cOrders: CartOrder[] = await this.cartOrderRepository.find(
-            {
-                where: (qb) => {
-                    qb.andWhere('endAt>=:d3', {
-                        d3: queryDay.format('yy-MM-DD HH:mm:ss')
-                    });
-                    qb.andWhere('endAt<:d4', {
-                        d4: endOfDay.format('yy-MM-DD HH:mm:ss')
-                    });
-                },
-                relations: ['cartOrderElements', 'cartOrderElements.menuElement', 'cartOrderElements.menuElement.cartCategory'],
-                order: { endAt: 'ASC' }
-            }
-        )
-        return await this.elementsPrepare(cOrders)
-    }
 
-    async getCartElementsList(): Promise<EsIndexElement[]> {
+    async getCartOrdersList(): Promise<EsOrderIndexElement[]> {
         var cOrders: CartOrder[] = await this.cartOrderRepository.find(
             {
                 relations: ['cartOrderElements', 'cartOrderElements.menuElement', 'cartOrderElements.menuElement.cartCategory'],
                 order: { endAt: 'ASC' }
             }
         )
-        return await this.elementsPrepare(cOrders)
+        return await this.orderElementsPrepare(cOrders)
     }
 
-
-
-    async elementsPrepare(cOrders: CartOrder[]): Promise<EsIndexElement[]> {
-        var elements: EsIndexElement[] = []
+    async orderElementsPrepare(cOrders: CartOrder[]): Promise<EsOrderIndexElement[]> {
+        var elements: EsOrderIndexElement[] = []
         await map(cOrders, async (o: CartOrder, i) => {
-            var mergeIndex: string = String(i)
-            await map(o.cartOrderElements, async (oe: CartOrderElement, j) => {
-                mergeIndex += j
-                let els: EsIndexElement[] = await this.createElementsFromElement(o, oe, mergeIndex)
-                await map(els, async (el, i) => {
-                    elements.push(el)
-                })
-
-            })
+            var orderData: EsOrderDataElement = {
+                oId: o.id,
+                bonusUsed: o.bonusUsed,
+                currentBonusPrice: o.currentBonusPercent,
+                currentBonusPercent: o.currentBonusPercent,
+                bonusType: o.bonusType,
+                oneExtraPrice: o.oneExtraPrice,
+                endAt: moment(o.endAt).format('YYYY-MM-DD HH:mm:ss'),
+                startAt: moment(o.startAt).format('YYYY-MM-DD HH:mm:ss'),
+                endDay: moment(o.endDay).format('YYYY-MM-DD'),
+                weekDay: this.getWeekDay(o.endDay),
+                total: o.total,
+                bonusTotal: o.bonusTotal,
+                extra: this.sumOrderExtraQuantity(o.cartOrderElements),
+                extraTotalPrice: this.sumOrderExtraPrice(o.cartOrderElements, o.oneExtraPrice)
+            }
+            var nelems: EsOrderNestedElement[] = await this.createElementsList(o);
+            var el: EsOrderIndexElement = { ...orderData, ...{ elements: nelems } }
+            elements.push(el)
         })
         return elements
     }
 
-    async getEsElementsFromOrder(o: CartOrder): Promise<EsIndexElement[]> {
-        var elements: EsIndexElement[] = []
+    async orderElementPrepare(o: CartOrder): Promise<EsOrderIndexElement> {
+        var orderData: EsOrderDataElement = {
+            oId: o.id,
+            bonusUsed: o.bonusUsed,
+            currentBonusPrice: o.currentBonusPercent,
+            currentBonusPercent: o.currentBonusPercent,
+            bonusType: o.bonusType,
+            oneExtraPrice: o.oneExtraPrice,
+            endAt: moment(o.endAt).format('YYYY-MM-DD HH:mm:ss'),
+            startAt: moment(o.startAt).format('YYYY-MM-DD HH:mm:ss'),
+            endDay: moment(o.endDay).format('YYYY-MM-DD'),
+            weekDay: this.getWeekDay(o.endDay),
+            total: o.total,
+            bonusTotal: o.bonusTotal,
+            extra: this.sumOrderExtraQuantity(o.cartOrderElements),
+            extraTotalPrice: this.sumOrderExtraPrice(o.cartOrderElements, o.oneExtraPrice)
+        }
+        var nelems: EsOrderNestedElement[] = await this.createElementsList(o);
+        var el: EsOrderIndexElement = { ...orderData, ...{ elements: nelems } }
+        return el
+    }
+
+
+    async createElementsList(o: CartOrder): Promise<EsOrderNestedElement[]> {
+        var elements: EsOrderNestedElement[] = []
         await map(o.cartOrderElements, async (oe: CartOrderElement, j) => {
-            let els: EsIndexElement[] = await this.createElementsFromElement(o, oe, String(j))
+            let els: EsOrderNestedElement[] = await this.createElementsFromElement(o, oe, String(j))
             await map(els, async (el, i) => {
                 elements.push(el)
             })
@@ -89,23 +102,23 @@ export class EsQueryBaseService {
         return elements
     }
 
-    async createElementsFromElement(o: CartOrder, oe: CartOrderElement, mergeIndex: string): Promise<EsIndexElement[]> {
+    async createElementsFromElement(o: CartOrder, oe: CartOrderElement, mergeIndex: string): Promise<EsOrderNestedElement[]> {
 
-        var elements: EsIndexElement[] = []
+        var elements: EsOrderNestedElement[] = []
         if (oe.elementType == ElementType.configStepsPriceMany) {
             await map(oe.stepOptionsList, async (step: StepOptionsListElement, i) => {
                 mergeIndex += i
-                var esEl: EsIndexElement = await this.createElementToIndexFromSteps(o, oe, EsElementPositionType.normal, null, step, mergeIndex)
+                var esEl: EsOrderNestedElement = await this.createNestedElementToIndexFromSteps(o, oe, EsElementPositionType.normal, null, step, mergeIndex)
                 elements.push(esEl)
             })
         } else {
             if (oe.quantity > 1) {
                 await map(Array(oe.quantity).fill(1), async (v, i) => {
-                    var esEl: EsIndexElement = await this.createElementToIndex(o, oe, EsElementPositionType.normal, null, mergeIndex)
+                    var esEl: EsOrderNestedElement = await this.createNestedElementToIndex(o, oe, EsElementPositionType.normal, null, mergeIndex)
                     elements.push(esEl)
                 })
             } else {
-                var esEl: EsIndexElement = await this.createElementToIndex(o, oe, EsElementPositionType.normal, null, mergeIndex)
+                var esEl: EsOrderNestedElement = await this.createNestedElementToIndex(o, oe, EsElementPositionType.normal, null, mergeIndex)
                 elements.push(esEl)
             }
         }
@@ -114,26 +127,25 @@ export class EsQueryBaseService {
         if (oe.plusElements.length > 0) {
 
             await map(oe.plusElements, async (el: PlusElement, i) => {
-                mergeIndex += i
+                mergeIndex += String(i)
 
                 if (el.elementType == ElementType.configStepsPriceMany) {
                     await map(el.stepOptionsList, async (step: StepOptionsListElement, j) => {
                         mergeIndex += j
-                        var parentEsEl: EsIndexElement = await this.createElementToIndexFromPlusSteps(o, el, oe, step, mergeIndex)
+                        var parentEsEl: EsOrderNestedElement = await this.createNestedElementToIndexFromPlusSteps(o, el, oe, step, mergeIndex)
                         elements.push(parentEsEl)
                     })
                 } else {
                     if (el.qunatity > 1) {
                         await map(Array(el.qunatity).fill(1), async (v, j) => {
                             mergeIndex += j
-                            var parentEsEl: EsIndexElement = await this.createElementToIndexFromPlus(o, el, oe, mergeIndex)
+                            var parentEsEl: EsOrderNestedElement = await this.createNestedElementToIndexFromPlus(o, el, oe, null, mergeIndex)
                             elements.push(parentEsEl)
                         })
                     } else {
-                        var parentEsEl: EsIndexElement = await this.createElementToIndexFromPlus(o, el, oe, mergeIndex)
+                        var parentEsEl: EsOrderNestedElement = await this.createNestedElementToIndexFromPlus(o, el, oe, null, mergeIndex)
                         elements.push(parentEsEl)
                     }
-
                 }
 
 
@@ -143,12 +155,14 @@ export class EsQueryBaseService {
         return elements
     }
 
-    async createElementToIndex(
+
+    async createNestedElementToIndex(
         o: CartOrder,
         oe: CartOrderElement,
         type: EsElementPositionType = EsElementPositionType.normal,
         poelId: number | null = null,
-        mergeIndex: string): Promise<EsIndexElement> {
+        mergeIndex: string
+    ): Promise<EsOrderNestedElement> {
         var melId: number | null = null
         var cCId: number | null = null
         if (oe.elementType != 'special')
@@ -179,7 +193,6 @@ export class EsQueryBaseService {
 
         return {
             id: o.id + '' + oe.id + '' + ((melId) ? melId : 0) + moment().format('x') + mergeIndex,
-            oId: o.id,
             oelId: oe.id,
             poelId,
             melId: (oe.elementType == 'special') ? null : melId,
@@ -205,34 +218,32 @@ export class EsQueryBaseService {
             onlyGluten: oe.onlyGluten,
             gluten: oe.gluten,
             grill: oe.grill,
-            onOnePlate: oe.onOnePlate,
             pricePerOne: oe.pricePerOne,
+            quantity: 1,
             serveType: oe.serveType,
-            endAt: moment(o.endAt).format('YYYY-MM-DD HH:mm:ss'),
-            startAt: moment(o.startAt).format('YYYY-MM-DD HH:mm:ss'),
-            endDay: moment(o.endDay).format('YYYY-MM-DD'),
-            weekDay: this.getWeekDay(o.endDay),
             hasPlus: (oe.plusElements.length > 0),
             element: (oe.element) ? JSON.stringify(oe.element) : null,
             description: oe.description,
             optionsElements: (oe.optionsElements) ? this.createOptionsElements(oe.optionsElements) : [],
             descElements: (oe.descElements) ? this.createDescElements(oe.descElements) : [],
-            reverseElements: (oe.reverseElements) ? this.createReverseElements(oe.reverseElements) : [],
+            reverseElements: (oe.reverseElements) ? this.createReverseElements(oe.reverseElements) : []
         }
     }
 
-    async createElementToIndexFromSteps(
+    async createNestedElementToIndexFromSteps(
         o: CartOrder,
         oe: CartOrderElement,
         type: EsElementPositionType = EsElementPositionType.normal,
         poelId: number | null = null,
         step: StepOptionsListElement,
         mergeIndex: string
-    ): Promise<EsIndexElement> {
+    ): Promise<EsOrderNestedElement> {
+
         var melId: number | null = null
         var cCId: number | null = null
         if (oe.elementType != 'special')
             var melId: number | null = (oe.menuElement) ? oe.menuElement.id : oe.ind['id']
+
 
         if (melId) {
             var mel: MenuElement = await this.menuElementRepository.findOne({ where: { id: melId }, relations: ['cartCategory'] })
@@ -241,8 +252,9 @@ export class EsQueryBaseService {
             }
         }
 
+
         if (oe.elementType == 'special') {
-            cCId = await this.getSpecialCartCategory()
+            cCId = cCId = await this.getSpecialCartCategory()
         }
 
         var indString: string = this.getIndString(
@@ -255,10 +267,8 @@ export class EsQueryBaseService {
             (step) ? step.configSecondIndex : null,
             (step) ? step.configThirdIndex : null)
 
-
         return {
             id: o.id + '' + oe.id + '' + ((melId) ? melId : 0) + moment().format('x') + mergeIndex,
-            oId: o.id,
             oelId: oe.id,
             poelId,
             melId: (oe.elementType == 'special') ? null : melId,
@@ -284,23 +294,25 @@ export class EsQueryBaseService {
             onlyGluten: oe.onlyGluten,
             gluten: oe.gluten,
             grill: oe.grill,
-            onOnePlate: oe.onOnePlate,
-            pricePerOne: step.pricePerOne,
+            pricePerOne: oe.pricePerOne,
+            quantity: 1,
             serveType: oe.serveType,
-            endAt: moment(o.endAt).format('YYYY-MM-DD HH:mm:ss'),
-            startAt: moment(o.startAt).format('YYYY-MM-DD HH:mm:ss'),
-            endDay: moment(o.endDay).format('YYYY-MM-DD'),
-            weekDay: this.getWeekDay(o.endDay),
             hasPlus: (oe.plusElements.length > 0),
             element: (oe.element) ? JSON.stringify(oe.element) : null,
             description: oe.description,
             optionsElements: (oe.optionsElements) ? this.createOptionsElements(oe.optionsElements) : [],
             descElements: (oe.descElements) ? this.createDescElements(oe.descElements) : [],
-            reverseElements: (oe.reverseElements) ? this.createReverseElements(oe.reverseElements) : [],
+            reverseElements: (oe.reverseElements) ? this.createReverseElements(oe.reverseElements) : []
         }
     }
 
-    async createElementToIndexFromPlus(o: CartOrder, el: PlusElement, poel: CartOrderElement, mergeIndex): Promise<EsIndexElement> {
+    async createNestedElementToIndexFromPlus(
+        o: CartOrder,
+        el: PlusElement,
+        poel: CartOrderElement,
+        step: StepOptionsListElement | null,
+        mergeIndex: string
+    ): Promise<EsOrderNestedElement> {
         var cCId: number | null = null
         var mel: MenuElement = await this.menuElementRepository.findOne({ where: { id: el.id }, relations: ['cartCategory'] })
 
@@ -321,7 +333,6 @@ export class EsQueryBaseService {
 
         return {
             id: o.id + '' + poel.id + '' + ((mel) ? mel.id : 0) + moment().format('x') + mergeIndex,
-            oId: o.id,
             oelId: poel.id,
             poelId: poel.id,
             melId: (mel) ? mel.id : null,
@@ -347,13 +358,9 @@ export class EsQueryBaseService {
             onlyGluten: mel.onlyGluten,
             gluten: el.gluten,
             grill: el.grill,
-            onOnePlate: true,
             pricePerOne: el.pricePerOne,
+            quantity: 1,
             serveType: poel.serveType,
-            endAt: moment(o.endAt).format('YYYY-MM-DD HH:mm:ss'),
-            startAt: moment(o.startAt).format('YYYY-MM-DD HH:mm:ss'),
-            endDay: moment(o.endDay).format('YYYY-MM-DD'),
-            weekDay: this.getWeekDay(o.endDay),
             hasPlus: false,
             description: "",//poel.description,
             element: (mel) ? JSON.stringify(mel) : null,
@@ -363,13 +370,13 @@ export class EsQueryBaseService {
         }
     }
 
-
-    async createElementToIndexFromPlusSteps(
+    async createNestedElementToIndexFromPlusSteps(
         o: CartOrder,
         el: PlusElement,
         poel: CartOrderElement,
         step: StepOptionsListElement | null,
-        mergeIndex: string): Promise<EsIndexElement> {
+        mergeIndex: string
+    ) {
         var cCId: number | null = null
         var mel: MenuElement = await this.menuElementRepository.findOne({ where: { id: el.id }, relations: ['cartCategory'] })
 
@@ -389,7 +396,6 @@ export class EsQueryBaseService {
 
         return {
             id: o.id + '' + poel.id + '' + ((mel) ? mel.id : 0) + moment().format('x') + mergeIndex,
-            oId: o.id,
             oelId: poel.id,
             poelId: poel.id,
             melId: (mel) ? mel.id : null,
@@ -415,13 +421,9 @@ export class EsQueryBaseService {
             onlyGluten: mel.onlyGluten,
             gluten: el.gluten,
             grill: el.grill,
-            onOnePlate: true,
             pricePerOne: step.pricePerOne,
+            quantity: 1,
             serveType: poel.serveType,
-            endAt: moment(o.endAt).format('YYYY-MM-DD HH:mm:ss'),
-            startAt: moment(o.startAt).format('YYYY-MM-DD HH:mm:ss'),
-            endDay: moment(o.endDay).format('YYYY-MM-DD'),
-            weekDay: this.getWeekDay(o.endDay),
             hasPlus: false,
             description: "",//poel.description,
             element: (mel) ? JSON.stringify(mel) : null,
@@ -430,8 +432,6 @@ export class EsQueryBaseService {
             reverseElements: (el.reverseElements) ? this.createReverseElements(el.reverseElements) : [],
         }
     }
-
-
 
     createOptionsElements(opt: string[]): EsOptionsElement[] {
         var array: EsOptionsElement[] = []
@@ -503,88 +503,6 @@ export class EsQueryBaseService {
         return array
     }
 
-    async calcPriceExtra(
-        price: number,
-        pricePerOne: number,
-        extra: number,
-        quantity: number,
-        plusElements: PlusElement[],
-        isStep: boolean = false): Promise<number> {
-
-        if (isStep) {
-            if (plusElements.length == 0) {
-                var priceDiv: number = this.calculateService.minusElements(price, pricePerOne)
-                var extraPrice: number = this.calculateService.divElements(priceDiv, quantity)
-                return extraPrice
-            } else {
-
-                let ps: Array<number | string> = []
-                await map(plusElements, async (pel, i) => {
-                    ps.push(pel.price)
-                })
-                var plusPrice: number = this.calculateService.pricePlusMapElements(0, ps)
-                var priceForMenuProducts: number = this.calculateService.plusElements(plusPrice, pricePerOne)
-                var priceDiv: number = this.calculateService.minusElements(price, priceForMenuProducts)
-                var extraPrice: number = this.calculateService.divElements(priceDiv, quantity)
-                return extraPrice
-            }
-        } else {
-            if (plusElements.length == 0) {
-                var extraPrice: number = (price - (pricePerOne * quantity)) / quantity
-                return extraPrice
-            } else {
-                let ps: Array<number | string> = []
-                await map(plusElements, async (pel, i) => {
-                    ps.push(pel.price)
-                })
-                var plusPrice: number = this.calculateService.pricePlusMapElements(0, ps)
-                var priceForMenuProducts: number = this.calculateService.plusElements(plusPrice, this.calculateService.multipleValues(pricePerOne, quantity))
-                var priceDiv: number = this.calculateService.minusElements(price, priceForMenuProducts)
-                var extraPrice: number = this.calculateService.divElements(priceDiv, quantity)
-                return extraPrice
-            }
-        }
-
-
-    }
-
-    countOrderElementQuantity(oe: CartOrderElement) {
-        if (oe.elementType == ElementType.configStepsPriceMany) {
-
-            if (oe.plusElements.length == 0) {
-                return oe.stepOptionsList.length
-            } else {
-                var plus: Array<string | number> = []
-                oe.plusElements.map(e => {
-                    plus.push(e.quantity)
-                })
-                var plusQ = this.calculateService.pricePlusMapElements(0, plus)
-                return this.calculateService.plusElements(oe.stepOptionsList.length, plusQ)
-            }
-
-        } else {
-            if (oe.quantity > 1 && oe.plusElements.length == 0) {
-                return oe.quantity
-            } else {
-                var plus: Array<string | number> = []
-                oe.plusElements.map(e => {
-                    plus.push(e.quantity)
-                })
-                var plusQ = this.calculateService.pricePlusMapElements(0, plus)
-                return this.calculateService.plusElements(oe.quantity, plusQ)
-            }
-        }
-    }
-
-
-    getWeekDay(endAt: Date): Weekdays {
-        return moment(endAt).toDate().getDay()
-    }
-
-    async getSpecialCartCategory(): Promise<number> {
-        var c: CartCategory = await this.cartCategoryRepository.findOne({ isSpecial: true })
-        return c.id
-    }
 
     getIndString(
         isSpecial: boolean,
@@ -608,6 +526,34 @@ export class EsQueryBaseService {
         ind += configThirdIndex + '|'
         ind += ((isSea) ? '1' : '0')
         return ind
+    }
+
+    sumOrderExtraQuantity(oe: CartOrderElement[]): number {
+        var sum = 0
+        var list: Array<number | string> = []
+        oe.map((el: CartOrderElement) => {
+            list.push(el.extra)
+        })
+        return this.calculateService.pricePlusMapElements(sum, list)
+    }
+
+    sumOrderExtraPrice(oe: CartOrderElement[], oneExtraPrice: number): number {
+        var price = 0
+        var list: Array<number | string> = []
+        oe.map((el: CartOrderElement) => {
+            var pricePerEl = this.calculateService.multipleValues(el.extra, oneExtraPrice)
+            list.push(pricePerEl)
+        })
+        return this.calculateService.pricePlusMapElements(price, list)
+    }
+
+    getWeekDay(endAt: Date): Weekdays {
+        return moment(endAt).toDate().getDay()
+    }
+
+    async getSpecialCartCategory(): Promise<number> {
+        var c: CartCategory = await this.cartCategoryRepository.findOne({ isSpecial: true })
+        return c.id
     }
 
 
@@ -672,7 +618,5 @@ export class EsQueryBaseService {
 
         return name
     }
-
-
 
 }

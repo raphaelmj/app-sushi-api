@@ -10,7 +10,6 @@ export class CartCategorySubscriber implements EntitySubscriberInterface<any> {
 
     afterLoad(entity: CartCategory) {
 
-
     }
 
     afterInsert(event: InsertEvent<CartCategory>) {

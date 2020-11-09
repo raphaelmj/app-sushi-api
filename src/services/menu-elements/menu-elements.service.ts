@@ -30,6 +30,14 @@ export class MenuElementsService {
     return menu;
   }
 
+  async updateMany(elements: any[]): Promise<any[]> {
+    await map(elements, async (el, i) => {
+      var { cartCategory, menuCategory, menuCategoryId, cartCategoryId, ...rest } = el
+      await this.menuElementRepository.update(el.id, rest)
+    })
+    return elements
+  }
+
   async getCartCategories(): Promise<CartCategory[]> {
     return await this.cartCategoryRepository.find({
       order: { ordering: 'ASC' },

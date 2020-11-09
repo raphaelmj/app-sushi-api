@@ -1,36 +1,30 @@
-import { query } from 'express';
-import { IndexElementsResponse } from './../../interfaces/es/elements-index-response.interface';
 import { map } from 'p-iteration';
-import { EsIndexElement } from './../../interfaces/es/es-index-element.interface';
-import { EsQueryBaseService } from './es-query-base.service';
-import { MenuElement } from './../../entities/MenuElement';
-import { CartOrderElement } from './../../entities/CartOrderElement';
+import { EsQueryOrdersBaseService } from './es-query-orders-base.service';
+import { EsOrderIndexElement } from './../../interfaces/es/es-order-index-element.interface';
 import { CartOrder } from 'src/entities/CartOrder';
 import { EsMappingService } from './../es-mapping/es-mapping.service';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as esOrder from "../../interfaces/es/order-index-response.interface";
 import * as moment from "moment"
 
 @Injectable()
-export class EsUpdateService {
+export class EsUpdateOrdersService {
 
-    readonly indexName: string = 'oelements'
+    readonly indexName: string = "orders"
 
     constructor(
         private readonly elasticsearchService: ElasticsearchService,
         private readonly esMappingService: EsMappingService,
-        private readonly esQueryBaseService: EsQueryBaseService,
+        private readonly esQueryOrdersBaseService: EsQueryOrdersBaseService,
         @InjectRepository(CartOrder)
         private readonly cartOrderRepository: Repository<CartOrder>,
-        @InjectRepository(CartOrderElement)
-        private readonly cartOrderElementRepository: Repository<CartOrderElement>,
-        @InjectRepository(MenuElement)
-        private readonly menuElementRepository: Repository<MenuElement>,
     ) {
 
     }
+
 
     async createIndex() {
 
@@ -50,7 +44,7 @@ export class EsUpdateService {
         return await this.elasticsearchService.indices.putMapping({
             index: this.indexName,
             body: {
-                properties: this.esMappingService.flatMapping()
+                properties: this.esMappingService.nestedMappings()
             }
         })
     }
@@ -60,20 +54,18 @@ export class EsUpdateService {
         if (clear)
             await this.createIndex()
 
-        var elements: EsIndexElement[] = await this.esQueryBaseService.getCartElementsList()
+        var elements: EsOrderIndexElement[] = await this.esQueryOrdersBaseService.getCartOrdersList()
 
         await this.createIndexElements(elements)
     }
 
-
-    async createIndexElementsFromOrder(order: CartOrder): Promise<EsIndexElement[]> {
-        var elements: EsIndexElement[] = await this.esQueryBaseService.getEsElementsFromOrder(order)
-        await this.createIndexElements(elements)
-        return elements
+    async createOneOrderIndex(order: CartOrder) {
+        var el: EsOrderIndexElement = await this.esQueryOrdersBaseService.orderElementPrepare(order)
+        await this.createIndexElement(el)
     }
 
-    async elementDataUpdate(order: CartOrder) {
-        var elements: EsIndexElement[] = await this.esQueryBaseService.getEsElementsFromOrder(await this.cartOrderRepository.findOne({ where: { id: order.id }, relations: ['cartOrderElements'] }))
+    async orderDataUpdate(order: CartOrder) {
+        var oel: EsOrderIndexElement = await this.esQueryOrdersBaseService.orderElementPrepare(await this.cartOrderRepository.findOne({ where: { id: order.id }, relations: ['cartOrderElements'] }))
         await this.elasticsearchService.deleteByQuery({
             index: this.indexName,
             body: {
@@ -84,11 +76,11 @@ export class EsUpdateService {
                 }
             }
         })
-        await this.createIndexElements(elements)
+        await this.createIndexElement(oel)
     }
 
-    async elementsDateUpdate(order: CartOrder) {
-        var r: IndexElementsResponse = await this.elasticsearchService.search({
+    async orderDateUpdate(order: CartOrder) {
+        var r: esOrder.EsOrder.EsOrderIndexResponse = await this.elasticsearchService.search({
             index: this.indexName,
             body: {
                 query: {
@@ -107,7 +99,7 @@ export class EsUpdateService {
                     doc: {
                         endAt: moment(order.endAt).format('YYYY-MM-DD HH:mm:ss'),
                         endDay: moment(order.endDay).format('YYYY-MM-DD'),
-                        weekDay: this.esQueryBaseService.getWeekDay(order.endDay),
+                        weekDay: this.esQueryOrdersBaseService.getWeekDay(order.endDay),
                     }
                 }
             })
@@ -116,7 +108,7 @@ export class EsUpdateService {
     }
 
     async addElementToOrder(order: CartOrder) {
-        var elements: EsIndexElement[] = await this.esQueryBaseService.getEsElementsFromOrder(await this.cartOrderRepository.findOne({ where: { id: order.id }, relations: ['cartOrderElements'] }))
+        var oel: EsOrderIndexElement = await this.esQueryOrdersBaseService.orderElementPrepare(await this.cartOrderRepository.findOne({ where: { id: order.id }, relations: ['cartOrderElements'] }))
         await this.elasticsearchService.deleteByQuery({
             index: this.indexName,
             body: {
@@ -127,11 +119,11 @@ export class EsUpdateService {
                 }
             }
         })
-        await this.createIndexElements(elements)
+        await this.createIndexElement(oel)
     }
 
-    async removeElement(order: CartOrder) {
-        var elements: EsIndexElement[] = await this.esQueryBaseService.getEsElementsFromOrder(await this.cartOrderRepository.findOne({ where: { id: order.id }, relations: ['cartOrderElements'] }))
+    async removeOrderElement(order: CartOrder) {
+        var oel: EsOrderIndexElement = await this.esQueryOrdersBaseService.orderElementPrepare(await this.cartOrderRepository.findOne({ where: { id: order.id }, relations: ['cartOrderElements'] }))
         await this.elasticsearchService.deleteByQuery({
             index: this.indexName,
             body: {
@@ -142,24 +134,19 @@ export class EsUpdateService {
                 }
             }
         })
-        await this.createIndexElements(elements)
+        await this.createIndexElement(oel)
     }
 
-    async removeElementNotReIndex(order: CartOrder) {
-        await this.elasticsearchService.deleteByQuery({
+    async createIndexElement(el: EsOrderIndexElement) {
+        await this.elasticsearchService.indices.refresh({ index: this.indexName })
+        await this.elasticsearchService.index({
             index: this.indexName,
-            body: {
-                query: {
-                    term: {
-                        oId: order.id
-                    }
-                }
-            }
+            body: el
         })
     }
 
-    async createIndexElements(elements: EsIndexElement[]) {
-        await map(elements, async (el: EsIndexElement, i) => {
+    async createIndexElements(elements: EsOrderIndexElement[]) {
+        await map(elements, async (el: EsOrderIndexElement, i) => {
             await this.elasticsearchService.indices.refresh({ index: this.indexName })
             await this.elasticsearchService.index({
                 index: this.indexName,

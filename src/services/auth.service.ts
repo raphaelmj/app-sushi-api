@@ -20,7 +20,7 @@ export class AuthService {
     nick: string,
     password: string,
     role: string,
-  ): Promise<{ success: boolean; access_token: string; user?: UserData }> {
+  ): Promise<{ success: boolean; access_token: string; user?: UserData, userData?: User, exp?: number }> {
     var u: User = await this.userRepository.findOne({ where: { nick, status: true } });
 
     if (u) {
@@ -30,10 +30,15 @@ export class AuthService {
       );
       if (compare) {
         const payload = { id: u.id, nick: u.nick, role, permission: u.permission };
+        var access_token = await this.jwtService.sign(payload);
+        var t: Record<any, unknown> = await this.jwtService.verify<{}>(access_token);
+        var { password, ...ud } = u
         return {
           success: true,
-          access_token: this.jwtService.sign(payload),
+          access_token: access_token,
           user: { nick: u.nick, role, permission: u.permission },
+          userData: <User>ud,
+          exp: <number>t.exp
         };
       } else {
         return { success: false, access_token: null };

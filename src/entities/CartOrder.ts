@@ -1,4 +1,4 @@
-import { OrderType } from './../interfaces/cart-order.interface';
+import { OrderType, BonusType } from './../interfaces/cart-order.interface';
 import { Entity, BaseEntity, PrimaryGeneratedColumn, Column, UpdateDateColumn, CreateDateColumn, OneToMany, ManyToOne } from "typeorm";
 import * as moment from "moment"
 import { CartOrderElement } from "./CartOrderElement";
@@ -47,6 +47,14 @@ export class CartOrder extends BaseEntity {
     bonusUsed: boolean
 
     @Column({
+        type: 'enum',
+        enum: [
+            'none', 'cart', 'percent'
+        ], default: 'none'
+    })
+    bonusType: BonusType
+
+    @Column({
         nullable: true,
         type: 'decimal',
         precision: 30,
@@ -54,6 +62,12 @@ export class CartOrder extends BaseEntity {
         default: 0.00
     })
     currentBonusPrice: number
+
+    @Column({
+        nullable: false,
+        default: 0
+    })
+    currentBonusPercent: number
 
     @Column({
         nullable: true,

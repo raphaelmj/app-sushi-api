@@ -36,7 +36,7 @@ export class AuthController {
   @Get('check')
   async checkAuth(@Req() req, @Res() res, @Session() session) {
     var data: any = await this.authService.checkAuth(req.cookies);
-    return res.json({ success: true });
+    // return res.json({ success: true });
     return res.json(data);
   }
 

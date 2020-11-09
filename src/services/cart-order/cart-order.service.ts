@@ -1,3 +1,4 @@
+import { BonusType } from './../../interfaces/cart-order.interface';
 import { CalculateService } from './../calculate/calculate.service';
 import { CartOrderElement } from './../../entities/CartOrderElement';
 import { async } from 'rxjs';
@@ -41,6 +42,8 @@ export class CartOrderService {
       endDay: Date | string;
       cart: any[];
       bonusUsed: boolean;
+      bonusType: BonusType,
+      currentBonusPercent: number
     },
     user: User,
   ): Promise<CartOrder> {
@@ -48,15 +51,17 @@ export class CartOrderService {
     data.endAt = moment(data.endAt).format('YYYY-MM-DD HH:mm:ss')
     data.endDay = moment(data.endAt).format('YYYY-MM-DD')
     data['currentBonusPrice'] = appConfig.data.bonus
+
     if (data.bonusUsed) {
       if (appConfig.data.bonus >= data.total) {
         data['bonusTotal'] = 0
       } else {
-        data['bonusTotal'] = this.calculateService.minusElements(data.total, appConfig.data.bonus)
+        data['bonusTotal'] = this.calcIfBonusUsedBeforeCreate(data.total, data.bonusType, appConfig.data.bonus, data.currentBonusPercent)
       }
     } else {
       data['bonusTotal'] = data.total
     }
+
     data['oneExtraPrice'] = appConfig.data.extraPrice
     const cartOrder: CartOrder = await this.cartOrderRepository.create(data);
     cartOrder.user = user;
@@ -131,11 +136,15 @@ export class CartOrderService {
 
     await cartEl.save();
     await this.cartPriceUpdate(body.orderId);
-    return { order, cartEl };
+    var no: CartOrder = await this.cartOrderRepository.findOne(
+      body.orderId,
+      { relations: ['cartOrderElements'] }
+    );
+    return { order: no, cartEl };
   }
 
   async cartPriceUpdate(id: number): Promise<CartOrder> {
-    const order = await this.cartOrderRepository.findOne(id, {
+    var order = await this.cartOrderRepository.findOne(id, {
       relations: ['cartOrderElements'],
     });
     var ps: Array<string | number> = []
@@ -144,17 +153,17 @@ export class CartOrderService {
     });
     let total: number = this.calculateService.pricePlusMapElements(0, ps)
     let bonusTotal: number = total
+
     if (order.bonusUsed) {
-      if (order.currentBonusPrice >= total) {
-        bonusTotal = 0
-      } else {
-        bonusTotal = this.calculateService.minusElements(total, order.currentBonusPrice)
-      }
+      bonusTotal = this.calcIfBonusUsedBonusTotal(total, order.bonusType, order.currentBonusPercent, order)
     } else {
       bonusTotal = total
     }
+
     await this.cartOrderRepository.update(id, { total, bonusTotal });
-    return order
+    return await this.cartOrderRepository.findOne(id, {
+      relations: ['cartOrderElements'],
+    });
   }
 
   async crateCOR(cartOrd: Record<any, unknown>) {
@@ -172,7 +181,6 @@ export class CartOrderService {
       if (this.calculateService.stringToNumber(o.currentBonusPrice) >= this.calculateService.stringToNumber(o.total)) {
         o.bonusTotal = 0
       } else {
-        console.log(this.calculateService.minusElements(o.total, o.currentBonusPrice))
         o.bonusTotal = this.calculateService.minusElements(o.total, o.currentBonusPrice)
       }
     } else {
@@ -186,5 +194,132 @@ export class CartOrderService {
     return o
   }
 
+
+  async orderBonusTypeSet(o: CartOrder, bonusUsed: boolean, bonusType: BonusType, percent: number) {
+
+    if (bonusUsed) {
+
+      // switch (bonusType) {
+      //   case BonusType.none:
+      //     o.currentBonusPercent = 0
+      //     o.bonusTotal = o.total
+      //     break;
+      //   case BonusType.cart:
+      //     if (this.calculateService.stringToNumber(o.currentBonusPrice) >= this.calculateService.stringToNumber(o.total)) {
+      //       o.bonusTotal = o.total
+      //     } else {
+      //       o.bonusTotal = this.calculateService.minusElements(o.total, o.currentBonusPrice)
+      //     }
+      //     o.currentBonusPercent = 0
+      //     break
+      //   case BonusType.percent:
+      //     percent = this.calculateService.stringToNumber(percent)
+      //     if (percent == 0) {
+      //       o.bonusTotal = o.total
+      //     } else {
+      //       var percentValue: number = this.calculateService.percentFind(percent, o.total)
+      //       o.bonusTotal = this.calculateService.minusElements(o.total, percentValue)
+      //     }
+      //     o.currentBonusPercent = percent
+      //     break;
+      // }
+      o = this.calcIfBonusUsed(o, bonusType, percent)
+
+    } else {
+      o.bonusTotal = o.total
+      o.currentBonusPercent = 0
+    }
+    if (o.bonusTotal == 0 && bonusUsed) {
+      o.paid = true
+    }
+    o.bonusUsed = bonusUsed
+    o.bonusType = bonusType
+    await o.save()
+    return o
+  }
+
+
+  calcIfBonusUsed(o: CartOrder, bonusType: BonusType, percent: number): CartOrder {
+
+    switch (bonusType) {
+      case BonusType.none:
+        o.currentBonusPercent = 0
+        o.bonusTotal = o.total
+        break;
+      case BonusType.cart:
+        if (this.calculateService.stringToNumber(o.currentBonusPrice) >= this.calculateService.stringToNumber(o.total)) {
+          o.bonusTotal = 0
+        } else {
+          o.bonusTotal = this.calculateService.minusElements(o.total, o.currentBonusPrice)
+        }
+        o.currentBonusPercent = 0
+        break
+      case BonusType.percent:
+        percent = this.calculateService.stringToNumber(percent)
+        if (percent == 0) {
+          o.bonusTotal = o.total
+        } else {
+          var percentValue: number = this.calculateService.percentFind(percent, o.total)
+          o.bonusTotal = this.calculateService.minusElements(o.total, percentValue)
+        }
+        o.currentBonusPercent = percent
+        break;
+    }
+    return o
+  }
+
+  calcIfBonusUsedBonusTotal(total: number, bonusType: BonusType, percent: number, o: CartOrder): number {
+
+    var bonusTotal: number = this.calculateService.stringToNumber(total)
+
+    switch (bonusType) {
+      case BonusType.none:
+        bonusTotal = total
+        break;
+      case BonusType.cart:
+        if (this.calculateService.stringToNumber(o.currentBonusPrice) >= this.calculateService.stringToNumber(o.total)) {
+          bonusTotal = 0
+        } else {
+          bonusTotal = this.calculateService.minusElements(total, o.currentBonusPrice)
+        }
+        break
+      case BonusType.percent:
+        percent = this.calculateService.stringToNumber(percent)
+        if (percent == 0) {
+          bonusTotal = total
+        } else {
+          var percentValue: number = this.calculateService.percentFind(percent, total)
+          bonusTotal = this.calculateService.minusElements(total, percentValue)
+        }
+        break;
+    }
+    return bonusTotal
+  }
+
+  calcIfBonusUsedBeforeCreate(total: number, bonusType: BonusType, currentBonusPrice: number, percent: number): number {
+    var bonusTotal: number = this.calculateService.stringToNumber(total)
+    switch (bonusType) {
+      case BonusType.none:
+
+        break;
+      case BonusType.cart:
+        if (this.calculateService.stringToNumber(currentBonusPrice) >= this.calculateService.stringToNumber(total)) {
+          bonusTotal = 0
+        } else {
+          bonusTotal = this.calculateService.minusElements(total, currentBonusPrice)
+        }
+        break
+      case BonusType.percent:
+        percent = this.calculateService.stringToNumber(percent)
+        if (percent == 0) {
+          bonusTotal = total
+        } else {
+          var percentValue: number = this.calculateService.percentFind(percent, total)
+          bonusTotal = this.calculateService.minusElements(total, percentValue)
+        }
+        break;
+    }
+    return bonusTotal
+  }
 
 }

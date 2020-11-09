@@ -17,6 +17,7 @@ import { map } from 'p-iteration';
 import { Repository, Not, IsNull } from 'typeorm';
 import e = require('express');
 import { CartOrder } from 'src/entities/CartOrder';
+import { BonusType } from 'src/interfaces/cart-order.interface';
 
 @Console()
 export class RefactorDataCommandService {
@@ -411,12 +412,36 @@ export class RefactorDataCommandService {
 
 
     async setOneExtraToOrder() {
-        var cartElems: CartOrder[] = await this.cartOrderRepository.find()
+        var cartOrds: CartOrder[] = await this.cartOrderRepository.find()
         var appConfig: AppConfig = await AppConfig.findOne()
-        await map(cartElems, async (c, i) => {
+        await map(cartOrds, async (c, i) => {
             c.oneExtraPrice = appConfig.data.extraPrice
             await c.save()
         })
     }
+
+    @Command({
+        command: 'set-bonus-cart-type'
+    })
+    async setBonus() {
+        const spin = createSpinner();
+        spin.start('set bonus type');
+
+        await this.setBonusType()
+
+        spin.succeed('changed')
+    }
+
+    async setBonusType() {
+        var cartOrds: CartOrder[] = await this.cartOrderRepository.find({ where: { bonusUsed: true } })
+        await map(cartOrds, async (c, i) => {
+            c.bonusType = BonusType.cart
+            await c.save()
+        })
+    }
+
+
+
+
 
 }

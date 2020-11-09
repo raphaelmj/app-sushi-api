@@ -30,7 +30,7 @@ import { AppJobsService } from './app-jobs.service';
 @Module({
   imports: [
     MongooseModule.forRoot(
-      'mongodb://...',
+      'mongodb://mo1239_mo:Mo1234@mongo27.mydevil.net/mo1239_mo',
     ),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
@@ -39,7 +39,7 @@ import { AppJobsService } from './app-jobs.service';
       port: 3306,
       username: 'root',
       password: '',
-      database: 'base',
+      database: 'mydb',
       entities: [
         User,
         CartOrder,

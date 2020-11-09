@@ -42,8 +42,8 @@ export class MenuCategoryService {
             nc.alias = slug(menu.name, { lower: true }) + "-" + nc.id
             await nc.save()
         }
-
-        return nc
+        nc.elements = []
+        return await this.menuCategoryRepository.findOne({ where: { id: nc.id }, relations: ['elements'] })
     }
 
 
@@ -53,7 +53,8 @@ export class MenuCategoryService {
         if (!isFree) {
             m.alias = slug(menu.name, { lower: true }) + "-" + menu.id
         }
-        return await this.menuCategoryRepository.update(menu.id, m)
+        await this.menuCategoryRepository.update(menu.id, m)
+        return await this.menuCategoryRepository.findOne({ where: { id: menu.id }, relations: ['elements'] })
     }
 
 
@@ -75,11 +76,22 @@ export class MenuCategoryService {
     }
 
 
-    async updateOrder(elements: any[]): Promise<boolean> {
+    async updateOrder(elements: any[]): Promise<MenuCategory[]> {
+        var mes: MenuCategory[] = []
         await map(elements, async (el, i) => {
             await this.menuCategoryRepository.update(el.id, { ordering: i })
+            mes.push(await this.menuCategoryRepository.findOne({ where: { id: el.id }, relations: ['elements'] }))
         })
-        return true
+        return mes
+    }
+
+    async updateMany(elements: any[]): Promise<MenuCategory[]> {
+        var mes: MenuCategory[] = []
+        await map(elements, async (el, i) => {
+            await this.menuCategoryRepository.update(el.id, el)
+            mes.push(await this.menuCategoryRepository.findOne({ where: { id: el.id }, relations: ['elements'] }))
+        })
+        return mes
     }
 
     async updateElementsOrder(elements: any[]) {
@@ -89,7 +101,9 @@ export class MenuCategoryService {
         return true
     }
 
-    async addElementToMenu(element: any, cid: number) {
+
+
+    async addElementToMenu(element: any, cid: number): Promise<MenuElement> {
         var mc: MenuCategory = await this.menuCategoryRepository.findOne(cid)
         var el: MenuElement = await this.menuElementRepository.findOne(element.id)
         var last: MenuElement = await this.menuElementRepository.findOne({ where: { menuCategory: { id: cid } }, order: { ordering: 'DESC' } })
@@ -99,7 +113,8 @@ export class MenuCategoryService {
         }
         el.ordering = ordering
         el.menuCategory = mc
-        return await el.save()
+        await el.save()
+        return el
 
     }
 
@@ -111,7 +126,7 @@ export class MenuCategoryService {
                 }
             })
         })
-        return true
+        return (await this.menuCategoryRepository.findOne({ where: { id: id }, relations: ['elements'] })).elements
     }
 
 
